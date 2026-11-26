@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. ตารางผู้ใช้งาน
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  fullName   String
+  department String?
+  role       Role      @default(USER)
+  createdAt  DateTime  @default(now())
+  bookings   Booking[]
+}
+
+// 2. ตารางห้องประชุม (เก็บสถานะและข้อความแจ้งเตือนก่อนจอง)
+model Room {
+  id          Int        @id @default(autoincrement())
+  name        String
+  capacity    Int
+  facilities  String[]   // เก็บรายการอุปกรณ์ เช่น ["โปรเจกเตอร์", "แอร์", "ไมค์"]
+  imageUrl    String?    // เก็บลิงก์รูปภาพจาก Supabase Storage
+  status      RoomStatus @default(AVAILABLE)
+  statusNote  String?    // ข้อความแจ้งเตือนอุปกรณ์เสียที่แอดมินแก้ไขได้
+  updatedAt   DateTime   @updatedAt
+  bookings    Booking[]
+}
+
+// 3. ตารางรายการจอง
+model Booking {
+  id            Int           @id @default(autoincrement())
+  roomId        Int
+  userId        String
+  title         String
+  startTime     DateTime
+  endTime       DateTime
+  bookingStatus BookingStatus @default(CONFIRMED)
+  createdAt     DateTime      @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ตัวเลือกสถานะต่างๆ (Enums)
+enum Role {
+  USER
+  ADMIN
+}
+
+enum RoomStatus {
+  AVAILABLE   // พร้อมใช้งานปกติ
+  WARNING     // มีอุปกรณ์ชำรุดบางส่วน (ยังจองได้ แต่แจ้งเตือนก่อน)
+  MAINTENANCE // ปิดปรับปรุง (ห้ามจอง)
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
